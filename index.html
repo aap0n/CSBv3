@@ -75,7 +75,7 @@ main{flex:1;display:flex;min-height:0}
   transition:all .15s;user-select:none;
 }
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#results{flex:1;overflow-y:auto;padding:4px 10px 20px}
+#results{flex:1;overflow-y:auto;padding:0 10px 20px}
 #results::-webkit-scrollbar,#sidebar ::-webkit-scrollbar{width:8px}
 #results::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .course{
@@ -95,6 +95,25 @@ main{flex:1;display:flex;min-height:0}
 .course.expanded .caret{transform:rotate(90deg)}
 .sections{display:none;border-top:1px solid var(--border)}
 .course.expanded .sections{display:block}
+.subjHead{
+  display:flex;align-items:center;gap:8px;padding:10px 8px 8px;cursor:pointer;user-select:none;
+  position:sticky;top:0;z-index:2;background:var(--panel);
+  font-weight:800;font-size:.88rem;letter-spacing:.04em;
+}
+.subjHead:hover{color:var(--accent2)}
+.lvlHead{
+  display:flex;align-items:center;gap:8px;padding:7px 8px 7px 20px;cursor:pointer;user-select:none;
+  font-weight:600;font-size:.78rem;color:var(--muted);
+}
+.lvlHead:hover{color:var(--text)}
+.subjHead .n,.lvlHead .n{font-size:.68rem;color:var(--muted);background:var(--panel2);padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:0}
+.subjHead .caret,.lvlHead .caret{margin-left:auto;color:var(--muted);font-size:.7rem;transition:transform .2s}
+.subjGroup.expanded>.subjHead .caret,.lvlGroup.expanded>.lvlHead .caret{transform:rotate(90deg)}
+.lvlGroup>.course{margin-left:20px}
+.secType{
+  padding:7px 13px 4px;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);
+}
 .sec{
   display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;
   border-bottom:1px solid var(--border);transition:background .12s;position:relative;
@@ -679,7 +698,10 @@ function render(){
   const list = courseList.filter(match);
   const frag = document.createDocumentFragment();
   const cap = 120;
-  list.slice(0,cap).forEach(c=>{
+  const autoOpen = !!query || !!filters.subj;
+  let shown = 0, hidden = 0;
+
+  function courseNode(c){
     const div = document.createElement('div');
     div.className = 'course'+(expanded.has(c.code)?' expanded':'');
     const anySel = c.secs.some(s=>selected.has(s.crn));
@@ -702,7 +724,29 @@ function render(){
       }
       let secs = c.secs;
       if(filters.open) secs = secs.filter(s=>/open/i.test(s.status));
-      secs.forEach(s=>{
+      // lectures first, then tutorials/labs/etc. under a small type heading
+      const byType = new Map();
+      for(const s of secs){
+        const t = s.type || 'Other';
+        if(!byType.has(t)) byType.set(t, []);
+        byType.get(t).push(s);
+      }
+      const types = [...byType.keys()].sort((a,b)=>(/lec/i.test(a)?0:1)-(/lec/i.test(b)?0:1));
+      const orderedSecs = [];
+      for(const t of types){
+        if(byType.size>1 && !/lec/i.test(t)){
+          orderedSecs.push({typeHead:t});
+        }
+        for(const s of byType.get(t)) orderedSecs.push(s);
+      }
+      orderedSecs.forEach(s=>{
+        if(s.typeHead){
+          const th = document.createElement('div');
+          th.className = 'secType';
+          th.textContent = s.typeHead;
+          secsEl.appendChild(th);
+          return;
+        }
         const conf = conflictsWith(s, selected);
         const el = document.createElement('div');
         el.className = 'sec'+(selected.has(s.crn)?' selected':'')+(conf.length&&!selected.has(s.crn)?' conflict':'');
@@ -735,17 +779,64 @@ function render(){
       if(!secs.length) secsEl.insertAdjacentHTML('beforeend','<div class="empty" style="padding:14px">No sections match filters</div>');
       div.appendChild(secsEl);
     }
-    frag.appendChild(div);
-  });
+    return div;
+  }
+
+  // bucket: subject -> level -> [courses]; courseList is sorted by code, so insertion order is already alphabetical
+  const bySubj = new Map();
+  for(const c of list){
+    const subj = c.code.split(' ')[0];
+    const lvl = (c.code.match(/\s(\d)/)||[])[1] || '0';
+    if(!bySubj.has(subj)) bySubj.set(subj, new Map());
+    const byLvl = bySubj.get(subj);
+    if(!byLvl.has(lvl)) byLvl.set(lvl, []);
+    byLvl.get(lvl).push(c);
+  }
+
+  for(const [subj, byLvl] of bySubj){
+    const sKey = 'subj:'+subj;
+    const sOpen = autoOpen || expanded.has(sKey);
+    let nCourses = 0; byLvl.forEach(cs=>nCourses+=cs.length);
+    const sDiv = document.createElement('div');
+    sDiv.className = 'subjGroup'+(sOpen?' expanded':'');
+    const sHead = document.createElement('div');
+    sHead.className = 'subjHead';
+    sHead.innerHTML = `<span>${esc(subj)}</span><span class="n">${nCourses}</span><span class="caret">▶</span>`;
+    sHead.onclick = ()=>{ expanded.has(sKey)?expanded.delete(sKey):expanded.add(sKey); render(); };
+    sDiv.appendChild(sHead);
+    if(sOpen){
+      for(const [lvl, cs] of byLvl){
+        const lKey = 'lvl:'+subj+':'+lvl;
+        const lOpen = autoOpen || expanded.has(lKey);
+        const lDiv = document.createElement('div');
+        lDiv.className = 'lvlGroup'+(lOpen?' expanded':'');
+        const lHead = document.createElement('div');
+        lHead.className = 'lvlHead';
+        lHead.innerHTML = `<span>${lvl==='0'?'Other':lvl+'000 level'}</span><span class="n">${cs.length}</span><span class="caret">▶</span>`;
+        lHead.onclick = ()=>{ expanded.has(lKey)?expanded.delete(lKey):expanded.add(lKey); render(); };
+        lDiv.appendChild(lHead);
+        if(lOpen){
+          for(const c of cs){
+            if(shown>=cap){ hidden++; continue; }
+            shown++;
+            lDiv.appendChild(courseNode(c));
+          }
+        }
+        sDiv.appendChild(lDiv);
+      }
+    }
+    frag.appendChild(sDiv);
+  }
+
   resultsEl.innerHTML='';
   if(!list.length){
     resultsEl.innerHTML = '<div class="empty">No courses found.<br>Try a subject code like <b>CGSC</b>, <b>PSYC</b>, <b>COMP</b>…</div>';
   } else {
     resultsEl.appendChild(frag);
-    if(list.length>cap){
+    if(hidden>0){
       const more = document.createElement('div');
       more.className='empty';
-      more.textContent = (list.length-cap)+' more — refine your search';
+      more.textContent = hidden+' more — refine your search';
       resultsEl.appendChild(more);
     }
   }
