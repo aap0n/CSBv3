@@ -2,7 +2,7 @@
 
 An unofficial, fast, visual schedule builder for Carleton University course registration.
 
-**Use it here → https://aap0n.github.io/carleton-schedule-builder/**
+https://aap0n.github.io/CSBv3/
 
 ## Features
 
