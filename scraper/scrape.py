@@ -10,11 +10,16 @@ The search form is serialized generically (hidden "dummy" fields + visible
 defaults); the seven day checkboxes m/t/w/r/f/s/u must all be submitted or
 the search silently returns "No courses meet the search criteria".
 
+Course descriptions come from the public calendar (calendar.carleton.ca),
+one page per subject per level (undergrad + grad), keyed by course code and
+filtered to courses actually offered in the scraped terms.
+
 Output (matching the schema the app consumes):
   data/courses-<termCode>.json  {term, termCode, scraped, source, sections[]}
   data/terms.json               {updated, terms: [{code, name, sections}]}
+  data/descriptions.json        {updated, source, courses: {"CGSC 1001": {d, x}}}
 
-Stdlib only. Usage: python3 scraper/scrape.py [--terms 202630,202710] [--out-dir data]
+Stdlib only. Usage: python3 scraper/scrape.py [--terms 202630,202710] [--out-dir data] [--skip-desc]
 """
 
 import argparse
@@ -31,6 +36,8 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 
 BASE = "https://central.carleton.ca/prod/"
+CALENDAR_BASE = "https://calendar.carleton.ca/"
+CALENDAR_SOURCE = "Carleton University calendar (calendar.carleton.ca)"
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -61,6 +68,13 @@ class Session:
             try:
                 with self.opener.open(urllib.request.Request(url, data=body), timeout=60) as r:
                     return r.read().decode("utf-8", "replace")
+            except urllib.error.HTTPError as e:
+                if e.code == 404:  # missing page is a real answer, not flakiness
+                    raise RuntimeError(f"404 on {url}") from e
+                last_err = e
+                wait = 2 ** attempt
+                log(f"  request failed ({e}); retrying in {wait}s")
+                time.sleep(wait)
             except (urllib.error.URLError, OSError) as e:
                 last_err = e
                 wait = 2 ** attempt
@@ -181,6 +195,83 @@ def parse_results(page, subj):
     return sections
 
 
+def clean_calendar_text(text):
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    # The calendar HTML itself doubles these lead-ins ("Precludes additional
+    # credit for Precludes additional credit for COMP 1005").
+    text = re.sub(r"\b(Precludes additional credit for|Prerequisite\(s\):)\s+\1", r"\1", text)
+    return text
+
+
+def parse_courseblocks(page):
+    """Calendar subject page -> {"CGSC 1001": {"d": description, "x": extras}}.
+
+    Each courseblock is: <strong>...courseblockcode + title...</strong><br/>
+    description text <div class="coursedescadditional">prereqs/precludes/hours</div>
+    """
+    out = {}
+    for block in re.split(r'<div class="courseblock">', page)[1:]:
+        block = block.split("<br/></div>")[0]
+        code = re.search(r'<span class="courseblockcode">([A-Z]{3,4})(?:&#160;|&nbsp;|\s)(\d{4})</span>', block)
+        if not code:
+            continue
+        body = re.search(r"</strong>\s*(?:<br/?>)?\s*(.*)$", block, re.S)
+        if not body:
+            continue
+        extra = ""
+        desc_html = body.group(1)
+        add = re.search(r'<div class="coursedescadditional">(.*)$', desc_html, re.S)
+        if add:
+            desc_html = desc_html[: add.start()]
+            extra = clean_calendar_text(cell_text(add.group(1)))
+        out[f"{code.group(1)} {code.group(2)}"] = {"d": clean_calendar_text(cell_text(desc_html)), "x": extra}
+    return out
+
+
+def scrape_descriptions(subjects, offered_codes):
+    """Fetch undergrad+grad calendar pages per subject -> descriptions for offered courses."""
+    session = Session()
+    courses = {}
+    for i, subj in enumerate(sorted(subjects), 1):
+        found = 0
+        for level in ("undergrad", "grad"):
+            url = f"{CALENDAR_BASE}{level}/courses/{subj}/"
+            try:
+                page = session.request(url)
+            except RuntimeError as e:
+                # Subjects without a calendar page 404; that's expected.
+                if "404" not in str(e):
+                    log(f"  WARNING: {url}: {e}")
+                continue
+            parsed = parse_courseblocks(page)
+            courses.update(parsed)
+            found += len(parsed)
+            time.sleep(REQUEST_DELAY)
+        if found:
+            log(f"  [{i}/{len(subjects)}] {subj}: {found} descriptions")
+    return {code: v for code, v in courses.items() if code in offered_codes}
+
+
+def write_descriptions(out_dir, courses):
+    path = out_dir / "descriptions.json"
+    if path.exists():
+        try:
+            old = len(json.loads(path.read_text())["courses"])
+        except (json.JSONDecodeError, KeyError):
+            old = 0
+        if old and len(courses) < old * MIN_KEEP_RATIO:
+            log(f"  SANITY GUARD: new description count {len(courses)} < {MIN_KEEP_RATIO:.0%} of old {old}; keeping old file")
+            return False
+    data = {
+        "updated": datetime.date.today().isoformat(),
+        "source": CALENDAR_SOURCE,
+        "courses": courses,
+    }
+    path.write_text(json.dumps(data, separators=(",", ":"), ensure_ascii=False))
+    log(f"  wrote {path} ({len(courses)} course descriptions)")
+    return True
+
+
 def scrape_term(term_code, term_name):
     log(f"== {term_name} ({term_code})")
     session = Session()
@@ -243,6 +334,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--terms", help="comma-separated term codes (default: all listed)")
     ap.add_argument("--out-dir", default="data", help="output directory (default: data)")
+    ap.add_argument("--skip-desc", action="store_true", help="skip scraping calendar course descriptions")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -268,6 +360,24 @@ def main():
         if not write_term(out_dir, data):
             failed = True
     write_index(out_dir, term_list)
+
+    if not args.skip_desc:
+        # Subjects/courses come from every term file present, so descriptions
+        # stay complete even on a --terms subset run.
+        subjects, offered = set(), set()
+        for path in out_dir.glob("courses-*.json"):
+            for s in json.loads(path.read_text())["sections"]:
+                subjects.add(s["subj"])
+                offered.add(s["course"])
+        log(f"== descriptions ({len(subjects)} subjects)")
+        try:
+            courses = scrape_descriptions(subjects, offered)
+            if not write_descriptions(out_dir, courses):
+                failed = True
+        except RuntimeError as e:
+            log(f"  FAILED descriptions: {e}")
+            failed = True
+
     sys.exit(1 if failed else 0)
 
 

@@ -1,0 +1,32 @@
+name: Scrape RateMyProfessors data
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # weekly — ratings move slowly
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape           # shared with scrape.yml so the two never push at once
+  cancel-in-progress: false
+
+jobs:
+  rmp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull professor profiles
+        run: python3 scraper/rmp.py --out-dir data
+
+      - name: Commit data
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add data/professors.json
+          git commit --allow-empty -m "Scrape RMP professor data ($(date -u '+%Y-%m-%d %H:%M UTC'))"
+          git push

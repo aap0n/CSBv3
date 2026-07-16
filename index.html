@@ -300,6 +300,61 @@ main{flex:1;display:flex;min-height:0}
   .block.ghost{opacity:.78}
   .block.leaving{opacity:0}
 }
+/* ============ SEARCH FORM / DESCRIPTIONS / RMP / CRN BOX ============ */
+#searchForm{display:flex;gap:6px;padding:6px 14px 0}
+#subjSel,#numBox{
+  background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  border-radius:10px;padding:8px 10px;font-size:.78rem;font-family:inherit;outline:none;
+}
+#subjSel{flex:1.3;min-width:0;cursor:pointer}
+#numBox{flex:1;min-width:0;letter-spacing:.06em}
+#subjSel:hover,#subjSel:focus,#numBox:focus{border-color:var(--accent)}
+.coursedesc{
+  padding:10px 13px;border-bottom:1px solid var(--border);
+  font-size:.72rem;line-height:1.55;color:var(--muted);
+}
+.coursedesc .cx{display:block;margin-top:6px;font-size:.68rem;opacity:.85}
+.rmp{
+  display:inline-block;font-size:.64rem;font-weight:700;padding:1px 6px;margin-left:7px;
+  border:1px solid;border-radius:8px;cursor:pointer;letter-spacing:.04em;
+}
+.rmp.good{color:var(--open);border-color:var(--open)}
+.rmp.mid{color:var(--wait);border-color:var(--wait)}
+.rmp.bad{color:var(--closed);border-color:var(--closed)}
+.rmp:hover{background:rgba(255,255,255,.07)}
+#rmpPop{
+  position:fixed;z-index:150;width:280px;background:var(--panel);border:1px solid var(--accent);
+  padding:13px 15px;display:none;box-shadow:0 14px 40px rgba(0,0,0,.55);
+}
+#rmpPop.show{display:block}
+#rmpPop .rname{font-weight:700;font-size:.9rem;padding-right:18px}
+#rmpPop .rdept{font-size:.68rem;color:var(--muted);margin:1px 0 9px}
+#rmpPop .rbig{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+#rmpPop .rbig b{font-size:1.7rem}
+#rmpPop .rbig span{font-size:.68rem;color:var(--muted)}
+#rmpPop .rrow{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);padding:2.5px 0}
+#rmpPop .rrow b{color:var(--text)}
+#rmpPop .rbar{display:flex;align-items:center;gap:7px;font-size:.62rem;color:var(--muted);padding:1.5px 0}
+#rmpPop .rbar>span:first-child{width:18px}
+#rmpPop .rbar>span:last-child{width:22px;text-align:right}
+#rmpPop .rbar .tr{flex:1;height:5px;background:var(--panel2);border:1px solid var(--border);position:relative}
+#rmpPop .rbar .fl{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+#rmpPop .rlink{display:inline-block;margin-top:10px;font-size:.68rem;color:var(--accent2);text-decoration:underline;text-underline-offset:3px}
+#rmpPop .rclose{position:absolute;top:8px;right:11px;cursor:pointer;color:var(--muted);font-weight:800;font-size:.85rem}
+#rmpPop .rclose:hover{color:var(--closed)}
+#crnBox{border-top:1px solid var(--border);padding:11px 16px 5px;display:none}
+#crnBox .crnHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+#crnBox .crnHead span{font-size:.68rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+#crnBox .crnHead button{font-size:.66rem;padding:4px 9px}
+#crnOut{display:flex;flex-wrap:wrap;gap:6px}
+.crnPill{
+  font-size:.74rem;font-weight:600;padding:4px 9px;border:1px solid var(--border);
+  background:var(--panel2);cursor:pointer;user-select:all;letter-spacing:.06em;
+}
+.crnPill:hover{border-color:var(--accent);color:var(--accent2)}
+@media(max-width:820px){
+  #subjSel,#numBox{font-size:15px;padding:11px 12px;border-radius:12px}
+}
 /* ============ CYBER MINIMAL SKIN ============ */
 *{border-radius:0!important}
 .lo-spin{border-radius:50%!important}
@@ -329,6 +384,9 @@ header .term{background:transparent;text-transform:uppercase;letter-spacing:.06e
 .courseHead .n{background:transparent;border:1px solid var(--border)}
 .course{background:transparent}
 #searchBox,.selItem{background:transparent;font-family:inherit;letter-spacing:.04em}
+#subjSel,#numBox,.crnPill{background:transparent;text-transform:uppercase;letter-spacing:.08em}
+#numBox::placeholder{text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;color:var(--muted)}
+#crnBox .crnHead span::before{content:'// '}
 #searchBox::placeholder{text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;color:var(--muted)}
 /* comment-style panel labels */
 #sidebar h2::before,.lo-msg::before{content:'// '}
@@ -374,7 +432,11 @@ header .term{background:transparent;text-transform:uppercase;letter-spacing:.06e
 <main>
   <div id="left">
     <div id="searchWrap">
-      <input id="searchBox" type="text" placeholder="Search courses — e.g. CGSC 2001, psychology, Davies…" autocomplete="off">
+      <input id="searchBox" type="text" placeholder="Search — e.g. CGSC 2001, psychology, Davies, CRN 30001…" autocomplete="off">
+    </div>
+    <div id="searchForm">
+      <select id="subjSel"><option value="">All subjects</option></select>
+      <input id="numBox" type="text" inputmode="numeric" placeholder="Course #" autocomplete="off">
     </div>
     <div id="filters">
       <span class="chip" data-f="open">Open only</span>
@@ -408,9 +470,12 @@ header .term{background:transparent;text-transform:uppercase;letter-spacing:.06e
       <div class="row"><span>Class hours / week</span><b id="sumHours">0.0</b></div>
       <div class="row"><span>Conflicts</span><b id="sumConflicts">0</b></div>
     </div>
+    <div id="crnBox">
+      <div class="crnHead"><span>CRNs — click to copy</span><button class="iconbtn" id="copyCrns">Copy all</button></div>
+      <div id="crnOut"></div>
+    </div>
     <div id="exportBtns">
-      <button class="iconbtn" id="copyCrns">Copy CRNs</button>
-      <button class="iconbtn" id="exportIcs">.ics</button>
+      <button class="iconbtn" id="exportIcs">Export .ics</button>
     </div>
   </div>
 </main>
@@ -419,11 +484,14 @@ header .term{background:transparent;text-transform:uppercase;letter-spacing:.06e
   <div class="tab on" data-v="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</div>
   <div class="tab" data-v="plan"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8.5h8M8 12.5h8M8 16.5h5"/></svg>Schedule</div>
 </nav>
+<div id="rmpPop"></div>
 <div class="toast" id="toast"></div>
 <div id="loadOverlay"><div class="lo-box"><div class="lo-spin"></div><div class="lo-msg">Loading course data…</div></div></div>
 <script>
 "use strict";
 let DATA = null;               // active term payload; set by loadTerm()
+let DESC = {};                 // course code -> {d: description, x: prereqs/extras}
+let PROFS = {};                // normalized instructor name -> RMP record
 const DAY_MAP = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
 const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MONTHS = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
@@ -478,6 +546,12 @@ function loadTerm(data){
     if(s.title && s.title.length > (courses[s.course].title||'').length && /Lecture|Seminar|Studio|Film/.test(s.type)) courses[s.course].title = s.title;
   }
   courseList = Object.values(courses).sort((a,b)=>a.code.localeCompare(b.code));
+  // subject dropdown (Carleton-style); keep the pick across term switches when possible
+  const subjSel = document.getElementById('subjSel');
+  const subjs = [...new Set(sections.map(s=>s.subj))].sort();
+  subjSel.innerHTML = '<option value="">All subjects</option>'+subjs.map(s=>`<option>${esc(s)}</option>`).join('');
+  if(subjs.includes(filters.subj)) subjSel.value = filters.subj;
+  else { filters.subj = ''; subjSel.value = ''; }
   // semester range
   semStart = null; semEnd = null;
   for(const s of sections) for(const sl of s.slots){
@@ -514,7 +588,7 @@ function gotoWeek(d){
 let selected = new Set();
 let ghost = null;              // crn being hovered
 let ghostTimer = null;         // hover debounce
-let filters = {open:false, fits:false, lvl:new Set()};
+let filters = {open:false, fits:false, lvl:new Set(), subj:'', num:''};
 let query = '';
 let colorMap = {};             // course code -> palette idx
 function colorFor(code){
@@ -548,9 +622,24 @@ function selectionConflicts(){
   return n;
 }
 
+// ---------- RMP lookup ----------
+function normName(n){
+  return n.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function profFor(name){ return name? PROFS[normName(name)] : null; }
+function rmpTag(name){
+  const p = profFor(name);
+  if(!p) return '';
+  const cls = p.r>=4?'good':p.r>=3?'mid':'bad';
+  return `<span class="rmp ${cls}" data-prof="${esc(name)}" title="RateMyProfessors ${p.r.toFixed(1)}/5 (${p.n} ratings) — click for details">★ ${p.r.toFixed(1)}</span>`;
+}
+
 // ---------- search ----------
 function match(c){
-  if(filters.lvl.size && !filters.lvl.has(c.code.match(/\s(\d)/)?.[1]==='4'||+c.code.match(/\s(\d)/)?.[1]>=4 ? '4' : c.code.match(/\s(\d)/)?.[1])) {}
+  const [cSubj, cNum] = c.code.split(' ');
+  if(filters.subj && cSubj!==filters.subj) return false;
+  if(filters.num && !(cNum||'').startsWith(filters.num)) return false;
   const lvlDigit = (c.code.match(/\s(\d)/)||[])[1];
   if(filters.lvl.size){
     const key = (+lvlDigit>=4) ? '4' : lvlDigit;
@@ -562,11 +651,11 @@ function match(c){
   if(!secs.length) return false;
   if(!query) return true;
   const q = query.toLowerCase().replace(/\s+/g,'');
-  const hay = (c.code + c.title + c.secs.map(s=>s.instructor).join(' ')).toLowerCase().replace(/\s+/g,'');
+  const hay = (c.code + c.title + c.secs.map(s=>s.instructor+' '+s.crn).join(' ')).toLowerCase().replace(/\s+/g,'');
   if(hay.includes(q)) return true;
   // multi-word: all tokens must appear
   const toks = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hay2 = (c.code+' '+c.title+' '+c.secs.map(s=>s.instructor).join(' ')).toLowerCase();
+  const hay2 = (c.code+' '+c.title+' '+c.secs.map(s=>s.instructor+' '+s.crn).join(' ')).toLowerCase();
   return toks.every(t=>hay2.includes(t));
 }
 
@@ -604,6 +693,13 @@ function render(){
     if(expanded.has(c.code)){
       const secsEl = document.createElement('div');
       secsEl.className='sections';
+      const d = DESC[c.code];
+      if(d && d.d){
+        const dd = document.createElement('div');
+        dd.className = 'coursedesc';
+        dd.innerHTML = esc(d.d)+(d.x?`<span class="cx">${esc(d.x)}</span>`:'');
+        secsEl.appendChild(dd);
+      }
       let secs = c.secs;
       if(filters.open) secs = secs.filter(s=>/open/i.test(s.status));
       secs.forEach(s=>{
@@ -614,7 +710,7 @@ function render(){
         el.innerHTML = `<span class="dot ${dotCls}" title="${esc(s.status)}"></span>
           <span class="sid">${esc(s.section)}</span>
           <div class="meta">
-            <div class="l1">${esc(s.type)}${s.instructor?' · '+esc(s.instructor):''}</div>
+            <div class="l1">${esc(s.type)}${s.instructor?' · '+esc(s.instructor):''}${rmpTag(s.instructor)}</div>
             <div class="l2">${esc(fmtSlots(s))}${s.also?' — needs: '+esc(s.also):''}</div>
           </div>
           ${conf.length&&!selected.has(s.crn)?'<span class="badge conflict">✕ '+esc(conf[0])+'</span>':''}
@@ -627,11 +723,16 @@ function render(){
           clearTimeout(ghostTimer);
           if(ghost){ ghost = null; drawCal(); }
         };
-        el.onclick = (e)=>{ e.stopPropagation(); toggle(s); };
+        el.onclick = (e)=>{
+          e.stopPropagation();
+          const tag = e.target.closest('.rmp');
+          if(tag){ showRmp(tag); return; }
+          toggle(s);
+        };
         el.title = s.info || '';
         secsEl.appendChild(el);
       });
-      if(!secs.length) secsEl.innerHTML = '<div class="empty" style="padding:14px">No sections match filters</div>';
+      if(!secs.length) secsEl.insertAdjacentHTML('beforeend','<div class="empty" style="padding:14px">No sections match filters</div>');
       div.appendChild(secsEl);
     }
     frag.appendChild(div);
@@ -885,7 +986,7 @@ function drawSidebar(){
         const div = document.createElement('div');
         div.className='selItem'; div.style.borderLeftColor = bg;
         div.innerHTML = `<div class="c">${esc(s.course)} ${esc(s.section)} <span style="font-weight:400;color:var(--muted)">· ${esc(s.type)}</span></div>
-          <div class="t">${esc(s.title)}${s.instructor?' — '+esc(s.instructor):''}</div>
+          <div class="t">${esc(s.title)}${s.instructor?' — '+esc(s.instructor):''}${rmpTag(s.instructor)}</div>
           <div class="m">${esc(fmtSlots(s))}</div>
           <div class="crn">CRN ${esc(s.crn)} · ${s.creditN} cr · ${esc(s.status)}</div>
           <span class="rm" title="Remove">✕</span>`;
@@ -893,6 +994,17 @@ function drawSidebar(){
         listEl.appendChild(div);
       });
     });
+  }
+  // CRN output box: one pill per selected section, click to copy
+  const crnBox = document.getElementById('crnBox');
+  if(selected.size){
+    crnBox.style.display = 'block';
+    document.getElementById('crnOut').innerHTML = [...selected].map(c=>byCrn[c])
+      .sort((a,b)=>a.course.localeCompare(b.course)||a.section.localeCompare(b.section))
+      .map(s=>`<span class="crnPill" data-crn="${esc(s.crn)}" title="${esc(s.course)} ${esc(s.section)} — click to copy">${esc(s.crn)}</span>`)
+      .join('');
+  } else {
+    crnBox.style.display = 'none';
   }
   // stats: count credits once per lecture-ish section (labs are usually 0cr, data has per-section credit)
   let credits=0, mins=0;
@@ -926,12 +1038,18 @@ function hasLinked(s){
 document.getElementById('searchBox').addEventListener('input', e=>{
   query = e.target.value.trim();
   if(query.length>=2){
-    // auto-expand exact course-code matches
+    // auto-expand exact course-code and CRN matches
     const q = query.toUpperCase().replace(/\s+/g,'');
     courseList.forEach(c=>{ if(c.code.replace(/\s+/g,'')===q) expanded.add(c.code); });
+    if(/^\d{5}$/.test(q) && byCrn[q]) expanded.add(byCrn[q].course);
     const matches = courseList.filter(match);
     if(matches.length<=4) matches.forEach(c=>expanded.add(c.code));
   }
+  render();
+});
+document.getElementById('subjSel').onchange = e=>{ filters.subj = e.target.value; render(); };
+document.getElementById('numBox').addEventListener('input', e=>{
+  filters.num = e.target.value.trim();
   render();
 });
 document.querySelectorAll('.chip').forEach(ch=>{
@@ -957,7 +1075,13 @@ if(localStorage.getItem('cuTheme')==='light') document.documentElement.dataset.t
 document.getElementById('copyCrns').onclick = ()=>{
   if(!selected.size) return toast('Nothing selected');
   navigator.clipboard.writeText([...selected].join(', '));
-  toast('CRNs copied: '+[...selected].join(', '));
+  toast('All CRNs copied: '+[...selected].join(', '));
+};
+document.getElementById('crnOut').onclick = e=>{
+  const pill = e.target.closest('.crnPill');
+  if(!pill) return;
+  navigator.clipboard.writeText(pill.dataset.crn);
+  toast('Copied CRN '+pill.dataset.crn);
 };
 document.getElementById('exportIcs').onclick = ()=>{
   if(!selected.size) return toast('Nothing selected');
@@ -999,6 +1123,38 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
 }
+// ---------- RMP popover ----------
+const rmpPop = document.getElementById('rmpPop');
+function showRmp(tag){
+  const name = tag.dataset.prof, p = profFor(name);
+  if(!p) return;
+  const maxN = Math.max(...p.dist, 1);
+  rmpPop.innerHTML = `
+    <span class="rclose" title="Close">✕</span>
+    <div class="rname">${esc(name)}</div>
+    <div class="rdept">${esc(p.dept)}${p.dept?' · ':''}${p.n} rating${p.n===1?'':'s'}</div>
+    <div class="rbig"><b>${p.r.toFixed(1)}</b><span>/ 5 overall</span></div>
+    <div class="rrow"><span>Difficulty</span><b>${p.d!=null?p.d.toFixed(1)+' / 5':'—'}</b></div>
+    <div class="rrow"><span>Would take again</span><b>${p.w>=0?Math.round(p.w)+'%':'—'}</b></div>
+    <div style="margin-top:8px">${[5,4,3,2,1].map(i=>
+      `<div class="rbar"><span>${i}★</span><span class="tr"><span class="fl" style="width:${(p.dist[i-1]/maxN*100).toFixed(0)}%"></span></span><span>${p.dist[i-1]}</span></div>`).join('')}</div>
+    <a class="rlink" href="https://www.ratemyprofessors.com/professor/${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Full profile on RateMyProfessors ↗</a>`;
+  rmpPop.classList.add('show');
+  const r = tag.getBoundingClientRect(), W = rmpPop.offsetWidth, H = rmpPop.offsetHeight;
+  const x = Math.min(Math.max(8, r.left), innerWidth - W - 8);
+  let y = r.bottom + 8;
+  if(y + H > innerHeight - 8) y = Math.max(8, r.top - H - 8);
+  rmpPop.style.left = x+'px'; rmpPop.style.top = y+'px';
+}
+function hideRmp(){ rmpPop.classList.remove('show'); }
+document.addEventListener('click', e=>{
+  const tag = e.target.closest('.rmp');
+  if(tag){ showRmp(tag); return; }   // sidebar tags; search rows call showRmp in their own handler
+  if(e.target.closest('.rclose')) return hideRmp();
+  if(!e.target.closest('#rmpPop')) hideRmp();
+});
+document.addEventListener('scroll', hideRmp, true);
+
 // ---------- week nav ----------
 document.getElementById('wkPrev').onclick = ()=>gotoWeek(addDays(viewWeek,-7));
 document.getElementById('wkNext').onclick = ()=>gotoWeek(addDays(viewWeek,7));
@@ -1028,6 +1184,7 @@ function refresh(){ if(!DATA) return; render(); drawCal(); drawSidebar(); }
 window.addEventListener('resize', drawCal);
 // arrow keys switch weeks (not while typing in a field)
 window.addEventListener('keydown', e=>{
+  if(e.key==='Escape') hideRmp();
   if(e.target.matches('input,select,textarea')) return;
   if(e.key==='ArrowLeft') gotoWeek(addDays(viewWeek,-7));
   else if(e.key==='ArrowRight') gotoWeek(addDays(viewWeek,7));
@@ -1073,6 +1230,15 @@ async function switchTerm(code){
     termSel.value = code;
     termSel.style.display = '';
     termSel.onchange = ()=>switchTerm(termSel.value);
+    // enrichment data loads in parallel; UI re-renders when each arrives
+    fetchJSON('data/descriptions.json')
+      .then(d=>{ DESC = d.courses||{}; refresh(); }).catch(()=>{});
+    fetchJSON('data/professors.json')
+      .then(d=>{
+        PROFS = {};
+        for(const [name,rec] of Object.entries(d.profs||{})) PROFS[normName(name)] = rec;
+        refresh();
+      }).catch(()=>{});
     await switchTerm(code);
   }catch(e){
     showOverlay('Could not load course data ('+esc(e.message)+').<br>If you opened this file directly from disk, serve it over http instead: <code>python3 -m http.server</code>', true);
