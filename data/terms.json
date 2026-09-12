@@ -1,5 +1,5 @@
 {
- "updated": "2026-09-11",
+ "updated": "2026-09-12",
  "terms": [
   {
    "code": "202620",
@@ -9,12 +9,12 @@
   {
    "code": "202630",
    "name": "Fall 2026 (September-December)",
-   "sections": 4234
+   "sections": 4238
   },
   {
    "code": "202710",
    "name": "Winter 2027 (January-April)",
-   "sections": 4119
+   "sections": 4121
   }
  ]
 }
